@@ -198,7 +198,7 @@ public class NewWorldRenderingPipeline implements WorldRenderingPipeline, CoreWo
 
 		BufferFlipper flipper = new BufferFlipper();
 
-		this.centerDepthSampler = new CenterDepthSampler(programSet.getPackDirectives().getCenterDepthHalfLife());
+		this.centerDepthSampler = new CenterDepthSampler(renderTargets, programSet.getPackDirectives().getCenterDepthHalfLife());
 
 		this.shadowMapResolution = programSet.getPackDirectives().getShadowDirectives().getResolution();
 
@@ -807,6 +807,10 @@ public class NewWorldRenderingPipeline implements WorldRenderingPipeline, CoreWo
 		Minecraft.getInstance().getMainRenderTarget().bindWrite(false);
 
 		renderTargets.destroy();
+
+		if (shadowRenderer != null) {
+			shadowRenderer.destroy();
+		}
 	}
 
 	@Override
