@@ -25,7 +25,10 @@ public interface WorldRenderingPipeline {
 	void setSpecialCondition(SpecialCondition special);
 	RenderTargetStateListener getRenderTargetStateListener();
 
-	void onSetShaderTexture(int id);
+    int getCurrentNormalTexture();
+    int getCurrentSpecularTexture();
+
+    void onSetShaderTexture(int id);
 
 	void beginHand();
 
