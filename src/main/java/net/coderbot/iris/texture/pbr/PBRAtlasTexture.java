@@ -3,6 +3,8 @@ package net.coderbot.iris.texture.pbr;
 import com.mojang.blaze3d.platform.TextureUtil;
 import net.coderbot.iris.mixin.texture.SpriteAnimatedTextureAccessor;
 import net.coderbot.iris.mixin.texture.SpriteFrameInfoAccessor;
+import net.coderbot.iris.gl.IrisRenderSystem;
+
 import net.coderbot.iris.mixin.texture.TextureAtlasSpriteAccessor;
 import net.coderbot.iris.texture.util.TextureExporter;
 import net.coderbot.iris.texture.util.TextureManipulationUtil;
@@ -98,20 +100,25 @@ public class PBRAtlasTexture extends AbstractTexture {
 	protected void uploadSprite(TextureAtlasSprite sprite) {
 		Tickable ticker = sprite.getAnimationTicker();
 		if (ticker instanceof SpriteAnimatedTextureAccessor) {
+			IrisRenderSystem.lockParameters(true);
 			SpriteAnimatedTextureAccessor accessor = (SpriteAnimatedTextureAccessor) ticker;
 
 			accessor.invokeUploadFrame(((SpriteFrameInfoAccessor) accessor.getFrames().get(accessor.getFrame())).getIndex());
 			return;
 		}
 
+		IrisRenderSystem.lockParameters(false);
+
 		sprite.uploadFirstFrame();
 	}
 
 	public void cycleAnimationFrames() {
 		bind();
+		IrisRenderSystem.lockParameters(true);
 		for (Tickable ticker : animationTickers) {
 			ticker.tick();
 		}
+		IrisRenderSystem.lockParameters(false);
 	}
 
 	@Override

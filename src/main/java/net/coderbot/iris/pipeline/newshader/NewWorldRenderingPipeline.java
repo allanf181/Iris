@@ -134,6 +134,8 @@ public class NewWorldRenderingPipeline implements WorldRenderingPipeline, CoreWo
 	private final int shadowMapResolution;
 
 	private boolean shouldBindPBR;
+	private int currentNormalTexture;
+	private int currentSpecularTexture;
 
 	public NewWorldRenderingPipeline(ProgramSet programSet) throws IOException {
 		if (FabricLoader.getInstance().isDevelopmentEnvironment()) {
@@ -243,7 +245,7 @@ public class NewWorldRenderingPipeline implements WorldRenderingPipeline, CoreWo
 			ProgramSamplers.CustomTextureSamplerInterceptor customTextureSamplerInterceptor = ProgramSamplers.customTextureSamplerInterceptor(builder, customTextureManager.getCustomTextureIdMap().getOrDefault(TextureStage.GBUFFERS_AND_SHADOW, Object2ObjectMaps.emptyMap()));
 
 			IrisSamplers.addRenderTargetSamplers(customTextureSamplerInterceptor, flipped, renderTargets, false);
-			IrisSamplers.addLevelSamplers(customTextureSamplerInterceptor, whitePixel, new InputAvailability(true, true, false));
+			IrisSamplers.addLevelSamplers(customTextureSamplerInterceptor, this, whitePixel, new InputAvailability(true, true, false));
 			IrisSamplers.addWorldDepthSamplers(customTextureSamplerInterceptor, renderTargets);
 			IrisSamplers.addNoiseSampler(customTextureSamplerInterceptor, customTextureManager.getNoiseTexture());
 
@@ -280,7 +282,7 @@ public class NewWorldRenderingPipeline implements WorldRenderingPipeline, CoreWo
 			ProgramSamplers.CustomTextureSamplerInterceptor customTextureSamplerInterceptor = ProgramSamplers.customTextureSamplerInterceptor(builder, customTextureManager.getCustomTextureIdMap().getOrDefault(TextureStage.GBUFFERS_AND_SHADOW, Object2ObjectMaps.emptyMap()));
 
 			IrisSamplers.addRenderTargetSamplers(customTextureSamplerInterceptor, () -> prepareBeforeShadow ? flippedAfterPrepare : flippedBeforeShadow, renderTargets, false);
-			IrisSamplers.addLevelSamplers(customTextureSamplerInterceptor, whitePixel, new InputAvailability(true, true, false));
+			IrisSamplers.addLevelSamplers(customTextureSamplerInterceptor, this, whitePixel, new InputAvailability(true, true, false));
 			IrisSamplers.addNoiseSampler(customTextureSamplerInterceptor, customTextureManager.getNoiseTexture());
 
 			// Only initialize these samplers if the shadow map renderer exists.
@@ -542,11 +544,21 @@ public class NewWorldRenderingPipeline implements WorldRenderingPipeline, CoreWo
 	}
 
 	@Override
+	public int getCurrentNormalTexture() {
+		return currentNormalTexture;
+	}
+
+	@Override
+	public int getCurrentSpecularTexture() {
+		return currentSpecularTexture;
+	}
+
+	@Override
 	public void onSetShaderTexture(int id) {
 		if (shouldBindPBR && isRenderingWorld) {
 			PBRTextureHolder pbrHolder = PBRTextureManager.INSTANCE.getOrLoadHolder(id);
-			RenderSystem.setShaderTexture(IrisSamplers.NORMALS_TEXTURE_UNIT, pbrHolder.getNormalTexture().getId());
-			RenderSystem.setShaderTexture(IrisSamplers.SPECULAR_TEXTURE_UNIT, pbrHolder.getSpecularTexture().getId());
+			currentNormalTexture = pbrHolder.getNormalTexture().getId();
+			currentSpecularTexture = pbrHolder.getSpecularTexture().getId();
 		}
 	}
 
