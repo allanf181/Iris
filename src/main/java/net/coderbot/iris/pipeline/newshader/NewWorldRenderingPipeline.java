@@ -19,7 +19,6 @@ import net.coderbot.iris.gl.image.ImageHolder;
 import net.coderbot.iris.gl.program.ProgramImages;
 import net.coderbot.iris.gl.program.ProgramSamplers;
 import net.coderbot.iris.gl.texture.DepthBufferFormat;
-import net.coderbot.iris.gl.texture.InternalTextureFormat;
 import net.coderbot.iris.mixin.LevelRendererAccessor;
 import net.coderbot.iris.pipeline.ClearPass;
 import net.coderbot.iris.pipeline.ClearPassCreator;
@@ -61,7 +60,6 @@ import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.ShaderInstance;
 import net.minecraft.client.renderer.texture.AbstractTexture;
 import org.jetbrains.annotations.Nullable;
-import org.lwjgl.opengl.GL11C;
 import org.lwjgl.opengl.GL15C;
 import org.lwjgl.opengl.GL20C;
 import org.lwjgl.opengl.GL30C;
@@ -407,16 +405,17 @@ public class NewWorldRenderingPipeline implements WorldRenderingPipeline, CoreWo
 										boolean isIntensity, boolean isFullbright) throws IOException {
 		GlFramebuffer beforeTranslucent = renderTargets.createGbufferFramebuffer(flippedAfterPrepare, source.getDirectives().getDrawBuffers());
 		GlFramebuffer afterTranslucent = renderTargets.createGbufferFramebuffer(flippedAfterTranslucent, source.getDirectives().getDrawBuffers());
+		ShaderAttributeInputs inputs = new ShaderAttributeInputs(vertexFormat, isFullbright);
 
 		ExtendedShader extendedShader = NewShaderTests.create(name, source, beforeTranslucent, afterTranslucent,
-				baseline, fallbackAlpha, vertexFormat, updateNotifier, this, fogMode, isIntensity, isFullbright);
+				baseline, fallbackAlpha, vertexFormat, updateNotifier, this, inputs, fogMode, isIntensity, isFullbright);
 
 		loadedShaders.add(extendedShader);
 
 		Supplier<ImmutableSet<Integer>> flipped =
 				() -> isBeforeTranslucent ? flippedAfterPrepare : flippedAfterTranslucent;
 
-		addGbufferOrShadowSamplers(extendedShader, flipped, false);
+		addGbufferOrShadowSamplers(extendedShader, flipped, inputs, false);
 
 		return extendedShader;
 	}
@@ -458,21 +457,22 @@ public class NewWorldRenderingPipeline implements WorldRenderingPipeline, CoreWo
 	private ShaderInstance createShadowShader(String name, ProgramSource source, AlphaTest fallbackAlpha,
 											  VertexFormat vertexFormat, boolean isIntensity, boolean isFullbright) throws IOException {
 		GlFramebuffer framebuffer = this.shadowRenderTargets.getFramebuffer();
+		ShaderAttributeInputs inputs = new ShaderAttributeInputs(vertexFormat, isFullbright);
 
 		ExtendedShader extendedShader = NewShaderTests.create(name, source, framebuffer, framebuffer, baseline,
-				fallbackAlpha, vertexFormat, updateNotifier, this, FogMode.PER_VERTEX, isIntensity, isFullbright);
+				fallbackAlpha, vertexFormat, updateNotifier, this, inputs, FogMode.PER_VERTEX, isIntensity, isFullbright);
 
 		loadedShaders.add(extendedShader);
 
 		Supplier<ImmutableSet<Integer>> flipped = () -> (prepareBeforeShadow ? flippedAfterPrepare : flippedBeforeShadow);
 
-		addGbufferOrShadowSamplers(extendedShader, flipped, true);
+		addGbufferOrShadowSamplers(extendedShader, flipped, inputs, true);
 
 		return extendedShader;
 	}
 
 	private void addGbufferOrShadowSamplers(ExtendedShader extendedShader, Supplier<ImmutableSet<Integer>> flipped,
-											boolean isShadowPass) {
+											ShaderAttributeInputs inputs, boolean isShadowPass) {
 		TextureStage textureStage = TextureStage.GBUFFERS_AND_SHADOW;
 
 		ProgramSamplers.CustomTextureSamplerInterceptor samplerHolder =
@@ -482,9 +482,7 @@ public class NewWorldRenderingPipeline implements WorldRenderingPipeline, CoreWo
 		IrisSamplers.addRenderTargetSamplers(samplerHolder, flipped, renderTargets, false);
 		IrisImages.addRenderTargetImages(extendedShader, flipped, renderTargets);
 
-		// TODO: IrisSamplers.addLevelSamplers(builder, normals, specular);
-		samplerHolder.addExternalSampler(IrisSamplers.NORMALS_TEXTURE_UNIT, "normals");
-		samplerHolder.addExternalSampler(IrisSamplers.SPECULAR_TEXTURE_UNIT, "specular");
+		IrisSamplers.addLevelSamplers(samplerHolder, this, whitePixel, inputs.toInputAvailability());
 
 		IrisSamplers.addWorldDepthSamplers(samplerHolder, this.renderTargets);
 		IrisSamplers.addNoiseSampler(samplerHolder, this.customTextureManager.getNoiseTexture());
